@@ -1,85 +1,141 @@
-function serializeRelationships(item, relationships) {
-  const result = {};
+import { camelize } from 'humps';
+const diff = require('arr-diff');
 
-  Object.entries(relationships).forEach(([name, type]) => {
-    const idOrIds = item[name];
+function serializedAttributes(type, unserializedBody, schema) {
+  let attr;
+  if (type === 'item') {
+    attr = diff(Object.keys(unserializedBody), [
+      "item_type",
+      "id",
+      "created_at",
+      "updated_at",
+      "is_valid",
+      "published_version",
+      "current_version"
+    ]);
+    console.log("itemsNEEDS", )
+  } else {
+    attr = attributes(type, schema)
+  }
 
-    let data = null;
+  let result = {};
 
-    if (Array.isArray(idOrIds)) {
-      data = idOrIds.map(id => ({ type, id }));
-    } else if (idOrIds) {
-      data = { type, id: idOrIds };
+  attr.forEach( attribute => {
+    if (unserializedBody.hasOwnProperty(camelize(attribute))) {
+      result[attribute] = unserializedBody[camelize(attribute)] || null;
+    } else if (requiredAttributes(schema).includes(attribute)) {
+      throw new Error(`Required attribute: ${attribute}`)
     }
-
-    result[name] = { data };
-  });
-
+  })
   return result;
 }
 
-function serialize(
-  item,
-  {
-    type,
-    attributes,
-    requiredAttributes,
-    relationships,
-    requiredRelationships,
-  }
-) {
-  const result = { type, attributes: {} };
+function serializedRelationships(type, unserializedBody, schema) {
+  let result = {};
 
-  attributes.forEach((attribute) => {
-    if (attribute in item) {
-      result.attributes[attribute] = item[attribute];
-    }
-  });
-
-  if (item.id) {
-    result.id = item.id;
-  }
-
-  if (requiredAttributes) {
-    requiredAttributes.forEach((requiredAttribute) => {
-      if (item[requiredAttribute] === undefined) {
-        throw new Error(`Required attribute: ${requiredAttribute}`);
-      }
-    });
-  }
-
-  if (relationships) {
-    result.relationships = serializeRelationships(item, relationships);
-
-    if (requiredRelationships) {
-      requiredRelationships.forEach((requiredRelationship) => {
-        if (item[requiredRelationship] === undefined) {
-          throw new Error(`Required relationship: ${requiredRelationship}!`);
+  return Object.entries(relationships(type, schema)).reduce((acc, [relationship, meta]) => {
+    if (unserializedBody.hasOwnProperty(camelize(relationship))) {
+      const value = unserializedBody[camelize(relationship)];
+      let data = [];
+      if (value) {
+        if (meta.collection) {
+          value.forEach( id =>
+            data.push( {type: meta.type, id: id}) );
+        } else {
+          data = { type: meta.type, id: id };
         }
-      });
+      }
+      acc[relationship] = data;
+    } else if (requiredRelationships(schema).includes(relationship) ) {
+      throw new Error(`Required attribute: ${relationship}`);
+    } else {
+      acc[relationship] = meta;
+    }
+    return acc;
+  }, {});
+}
+
+function attributes(type, schema) {
+  return Object.keys(linkAttributes(schema).properties);
+}
+
+function relationships(type, schema) {
+  if (type == "item") {
+    if (link.rel == "create") {
+      return { item_type: { collection: false, type: 'item_type' } };
+    } else {
+      return {};
     }
   }
 
-  return result;
+  if (!linkRelationships(schema).properties) {
+    return {};
+  }
+
+  return Object.entries(linkRelationships(schema).properties).reduce((acc, [relationship, relAttributes] ) => {
+    const isCollection = relAttributes.properties.data.type == 'array';
+
+    const isObject = relAttributes.properties.data.type == 'object';
+
+    let definition;
+
+    if (isCollection) {
+      definition = relAttributes.properties.data.items;
+    } else if (isObject) {
+      definition = relAttributes.properties.data;
+    } else {
+      definition = relAttributes.properties.data.anyOf
+        .find( x => x.type[0] != 'null' );
+    }
+
+
+    const relType = definition.properties.type.pattern
+      .replace(new RegExp(/(^\^|\$$)/, 'g'), '');
+
+    acc[relationship] = { collection: isCollection, type: relType };
+    return acc;
+  }, {});
+}
+
+
+function linkAttributes(schema) {
+  return schema.properties.data.properties.attributes;
+}
+
+function linkRelationships(schema) {
+  if (!schema || !schema.properties.data) {
+    return {}
+  }
+  return schema.properties.data.properties.relationships;
+}
+
+function requiredAttributes(schema) {
+  return linkAttributes(schema).required || [];
+}
+
+function requiredRelationships(schema) {
+  return linkRelationships(schema).required || [];
 }
 
 export default function serializeJsonApi(...args) {
-  if (args.length === 2) {
-    const [singleOrCollection, rules] = args;
-    if (Array.isArray(singleOrCollection)) {
-      const data = singleOrCollection.map(obj => serialize(obj, rules));
-      return { data };
+  if (args.length === 4 || args.length === 3) {
+    const [type, unserializedBody, link, itemId] = args;
+    let data = {};
+
+    data["type"] = type;
+
+    if (itemId || unserializedBody.id) {
+      data["id"] = itemId || unserializedBody.id;
     }
 
-    return { data: serialize(singleOrCollection, rules) };
-  }
+    data["attributes"] = serializedAttributes(type, unserializedBody, link.schema);
 
-  if (args.length === 3) {
-    const [id, attributes, rules] = args;
-    const newObject = Object.assign({}, { id: id.toString() }, attributes);
-    const data = serialize(newObject, rules);
-    return { data };
-  }
+    if (link.schema.properties && linkRelationships(link.schema)) {
+      data["relationships"] = serializedRelationships(type, unserializedBody, link.schema);
+    }
 
-  throw new Error('Invalid arguments');
+    return { data: data }
+  } else {
+    throw new Error('Invalid arguments');
+  }
 }
