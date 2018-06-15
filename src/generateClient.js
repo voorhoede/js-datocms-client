@@ -26,6 +26,11 @@ export default function generateClient(subdomain) {
             return rawUploadFile(this, source);
           };
         }
+        if (namespace === 'get') {
+          return function get(url, params = {}, options = {}) {
+            return client.get(url, params = {}, options = {});
+          };
+        }
         return new Proxy({}, {
           get(obj2, apiCall) {
             return function call(...args) {
