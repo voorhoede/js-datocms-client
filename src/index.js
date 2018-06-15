@@ -8,8 +8,8 @@ if (process.env.ADD_POLYFILLS) {
   /* eslint-enable global-require */
 }
 
-export { default as AccountClient } from './account/AccountClient';
-export { default as SiteClient } from './site/SiteClient';
+export { default as AccountClient } from './AccountClient';
+export { default as SiteClient } from './SiteClient';
 export { default as Loader } from './local/Loader';
 export { default as Image } from './local/fields/File';
 export { default as File } from './local/fields/File';

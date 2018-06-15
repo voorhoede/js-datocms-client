@@ -12,27 +12,19 @@ export default function generateClient(subdomain) {
   return function Client(token, extraHeaders = {}, baseUrl = `https://${subdomain}.datocms.com`) {
     let schemaPromise;
 
-    const client = new ClientClass(token, extraHeaders, baseUrl)
-
-    function uploadFile(source) {
-      return uploadFile(this, source);
-    }
-
-    function uploadImage(source) {
-      return uploadFile(this, source);
-    }
+    const client = new ClientClass(token, extraHeaders, baseUrl);
 
     return new Proxy({}, {
       get(obj1, namespace) {
-        if (namespace === "uploadFile") {
-          return function uploadFile(source){
+        if (namespace === 'uploadFile') {
+          return function uploadFile(source) {
             return rawUploadFile(this, source);
           };
         }
-        if (namespace === "uploadImage") {
+        if (namespace === 'uploadImage') {
           return function uploadImage(source) {
             return rawUploadFile(this, source);
-          }
+          };
         }
         return new Proxy({}, {
           get(obj2, apiCall) {
@@ -48,12 +40,12 @@ export default function generateClient(subdomain) {
                 const sub = schema.properties[singularized];
 
                 if (!sub) {
-                  throw "Non esiste " + namespace;
+                  throw `Non esiste ${namespace}`;
                 }
 
                 const methodNames = {
-                  "instances": "all",
-                  "self": "find",
+                  instances: 'all',
+                  self: 'find',
                 };
 
                 const identityRegexp = /\{\(.*?definitions%2F(.*?)%2Fdefinitions%2Fidentity\)}/g;
@@ -63,21 +55,21 @@ export default function generateClient(subdomain) {
                 );
 
                 if (!link) {
-                  throw "Non esiste " + apiCall;
+                  throw `Non esiste ${apiCall}`;
                 }
 
                 let lastUrlId;
                 let url = link.href;
 
-                url = url.replace(identityRegexp, function(match) {
+                url = url.replace(identityRegexp, (match) => {
                   if (match) {
                     lastUrlId = args.shift();
-                    return lastUrlId
+                    return lastUrlId;
                   }
                 });
 
                 let body = {};
-                if ( link.schema && (link.method == "PUT" || link.method == "POST")) {
+                if (link.schema && (link.method == 'PUT' || link.method == 'POST')) {
                   const unserializedBody = args.shift();
                   body = serializeJsonApi(
                     singularized,
@@ -87,18 +79,18 @@ export default function generateClient(subdomain) {
                   );
                 }
 
-                if (link.method == "POST") {
+                if (link.method == 'POST') {
                   return client.post(`${url}`, body)
                   .then(response => Promise.resolve(deserializeJsonApi(response)));
-                } else if (link.method == "PUT") {
+                } else if (link.method == 'PUT') {
                   return client.put(`${url}`, body)
                   .then(response => Promise.resolve(deserializeJsonApi(response)));
-                } else if (link.method == "DELETE") {
+                } else if (link.method == 'DELETE') {
                   return client.delete(url)
                   .then(response => Promise.resolve(deserializeJsonApi(response)));
-                } else if (link.method == "GET") {
+                } else if (link.method == 'GET') {
                   const queryString = args.shift();
-                  const options = args.shift() || {}
+                  const options = args.shift() || {};
 
                   const deserializeResponse = Object.prototype.hasOwnProperty.call(options, 'deserializeResponse') ?
                     options.deserializeResponse :
@@ -123,11 +115,11 @@ export default function generateClient(subdomain) {
                       response
                   ));
                 }
-              })
+              });
             };
-          }
+          },
         });
-      }
+      },
     });
-  }
+  };
 }

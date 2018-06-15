@@ -3,8 +3,8 @@ import rimraf from 'rimraf';
 import tmp from 'tmp';
 import dirCompare from 'dir-compare';
 import dump from '../../src/dump/dump';
-import SiteClient from '../../src/site/SiteClient';
-import AccountClient from '../../src/account/AccountClient';
+import SiteClient from '../../src/SiteClient';
+import AccountClient from '../../src/AccountClient';
 import uploadFile from '../../src/upload/uploadFile';
 import uploadImage from '../../src/upload/uploadImage';
 
@@ -14,10 +14,10 @@ describe('CLI tool', () => {
       'XXX',
       {},
       'http://account-api.lvh.me:3001'
-    )
+    );
 
     const site = await accountClient.sites.create({
-      name: 'Integration new test site'
+      name: 'Integration new test site',
     });
 
     const client = new SiteClient(
@@ -62,7 +62,7 @@ describe('CLI tool', () => {
               blue: 255,
               alpha: 255,
             },
-          }
+          },
         }
       )
     );
@@ -76,7 +76,7 @@ describe('CLI tool', () => {
       apiKey: 'article',
       orderingDirection: null,
       orderingField: null,
-      draftModeActive: false
+      draftModeActive: false,
     });
 
     const textField = await client.fields.create(
@@ -89,7 +89,7 @@ describe('CLI tool', () => {
         localized: true,
         position: 99,
         hint: '',
-        validators: { required: {} }
+        validators: { required: {} },
       }
     );
 
@@ -100,13 +100,13 @@ describe('CLI tool', () => {
         fieldType: 'slug',
         appeareance: {
           titleFieldId: textField.id,
-          urlPrefix: null
+          urlPrefix: null,
         },
         label: 'Slug',
         localized: false,
         position: 99,
         hint: '',
-        validators: { required: {} }
+        validators: { required: {} },
       }
     );
 
@@ -125,7 +125,7 @@ describe('CLI tool', () => {
           extension: {
             predefined_list: 'image',
           },
-        }
+        },
       }
     );
 
@@ -139,7 +139,7 @@ describe('CLI tool', () => {
         localized: false,
         position: 99,
         hint: '',
-        validators: { required: {} }
+        validators: { required: {} },
       }
     );
 
@@ -149,7 +149,7 @@ describe('CLI tool', () => {
       itemType: itemType.id,
       title: {
         en: 'First post',
-        it: 'Primo post'
+        it: 'Primo post',
       },
       slug: 'first-post',
       file: await uploadFile(client, 'https://www.datocms.com/robots.txt'),

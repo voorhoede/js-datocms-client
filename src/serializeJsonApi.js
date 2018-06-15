@@ -5,27 +5,27 @@ function serializedAttributes(type, unserializedBody = {}, schema) {
   let attr;
   if (type === 'item') {
     attr = diff(Object.keys(unserializedBody), [
-      "itemType", "id", "createdAt",
-      "updatedAt", "isValid", "publishedVersion",
-      "currentVersion"
+      'itemType', 'id', 'createdAt',
+      'updatedAt', 'isValid', 'publishedVersion',
+      'currentVersion',
     ]);
   } else {
-    attr = attributes(type, schema)
+    attr = attributes(type, schema);
   }
-  let result = {};
+  const result = {};
 
-  attr.forEach( attribute => {
+  attr.forEach((attribute) => {
     if (unserializedBody.hasOwnProperty(camelize(attribute))) {
       result[attribute] = unserializedBody[camelize(attribute)];
     } else if (requiredAttributes(schema).includes(attribute)) {
-      throw new Error(`Required attribute: ${attribute}`)
+      throw new Error(`Required attribute: ${attribute}`);
     }
-  })
+  });
   return result;
 }
 
 function serializedRelationships(type, unserializedBody, schema) {
-  let result = {};
+  const result = {};
 
   return Object.entries(relationships(type, schema)).reduce((acc, [relationship, meta]) => {
     if (unserializedBody.hasOwnProperty(camelize(relationship))) {
@@ -34,7 +34,7 @@ function serializedRelationships(type, unserializedBody, schema) {
 
       if (value) {
         if (meta.collection) {
-          value.forEach( id => {
+          value.forEach((id) => {
             data.type = meta.type;
             data.id = id;
           });
@@ -45,8 +45,8 @@ function serializedRelationships(type, unserializedBody, schema) {
       } else {
         data = null;
       }
-      acc[relationship] = { data: data };
-    } else if (requiredRelationships(schema).includes(relationship) ) {
+      acc[relationship] = { data };
+    } else if (requiredRelationships(schema).includes(relationship)) {
       throw new Error(`Required attribute: ${relationship}`);
     } else {
       acc[relationship] = { data: null };
@@ -60,7 +60,7 @@ function attributes(type, schema) {
 }
 
 function relationships(type, schema) {
-  if (type == "item") {
+  if (type == 'item') {
     return { item_type: { collection: false, type: 'item_type' } };
   }
 
@@ -68,7 +68,7 @@ function relationships(type, schema) {
     return {};
   }
 
-  return Object.entries(linkRelationships(schema).properties).reduce((acc, [relationship, relAttributes] ) => {
+  return Object.entries(linkRelationships(schema).properties).reduce((acc, [relationship, relAttributes]) => {
     const isCollection = relAttributes.properties.data.type == 'array';
 
     const isObject = relAttributes.properties.data.type == 'object';
@@ -81,7 +81,7 @@ function relationships(type, schema) {
       definition = relAttributes.properties.data;
     } else {
       definition = relAttributes.properties.data.anyOf
-        .find( x => x.type[0] != 'null' );
+        .find(x => x.type[0] != 'null');
     }
 
     const relType = definition.properties.type.pattern
@@ -99,7 +99,7 @@ function linkAttributes(schema) {
 
 function linkRelationships(schema) {
   if (!schema || !schema.properties.data) {
-    return {}
+    return {};
   }
   return schema.properties.data.properties.relationships;
 }
@@ -115,21 +115,21 @@ function requiredRelationships(schema) {
 export default function serializeJsonApi(...args) {
   if (args.length === 4 || args.length === 3) {
     const [type, unserializedBody, link, itemId] = args;
-    let data = {};
+    const data = {};
 
-    data["type"] = type;
+    data.type = type;
 
     if (itemId || unserializedBody.id) {
-      data["id"] = itemId || unserializedBody.id;
+      data.id = itemId || unserializedBody.id;
     }
 
-    data["attributes"] = serializedAttributes(type, unserializedBody, link.schema);
+    data.attributes = serializedAttributes(type, unserializedBody, link.schema);
 
     if (link.schema.properties && linkRelationships(link.schema)) {
-      data["relationships"] = serializedRelationships(type, unserializedBody, link.schema);
+      data.relationships = serializedRelationships(type, unserializedBody, link.schema);
     }
 
-    return { data: data }
+    return { data };
   } else {
     throw new Error('Invalid arguments');
   }
