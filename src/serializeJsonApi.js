@@ -1,28 +1,22 @@
 import { camelize } from 'humps';
 const diff = require('arr-diff');
 
-function serializedAttributes(type, unserializedBody, schema) {
+function serializedAttributes(type, unserializedBody = {}, schema) {
   let attr;
   if (type === 'item') {
     attr = diff(Object.keys(unserializedBody), [
-      "item_type",
-      "id",
-      "created_at",
-      "updated_at",
-      "is_valid",
-      "published_version",
-      "current_version"
+      "itemType", "id", "createdAt",
+      "updatedAt", "isValid", "publishedVersion",
+      "currentVersion"
     ]);
-    console.log("itemsNEEDS", )
   } else {
     attr = attributes(type, schema)
   }
-
   let result = {};
 
   attr.forEach( attribute => {
     if (unserializedBody.hasOwnProperty(camelize(attribute))) {
-      result[attribute] = unserializedBody[camelize(attribute)] || null;
+      result[attribute] = unserializedBody[camelize(attribute)];
     } else if (requiredAttributes(schema).includes(attribute)) {
       throw new Error(`Required attribute: ${attribute}`)
     }
@@ -36,20 +30,26 @@ function serializedRelationships(type, unserializedBody, schema) {
   return Object.entries(relationships(type, schema)).reduce((acc, [relationship, meta]) => {
     if (unserializedBody.hasOwnProperty(camelize(relationship))) {
       const value = unserializedBody[camelize(relationship)];
-      let data = [];
+      let data = {};
+
       if (value) {
         if (meta.collection) {
-          value.forEach( id =>
-            data.push( {type: meta.type, id: id}) );
+          value.forEach( id => {
+            data.type = meta.type;
+            data.id = id;
+          });
         } else {
-          data = { type: meta.type, id: id };
+          data.type = meta.type;
+          data.id = value;
         }
+      } else {
+        data = null;
       }
-      acc[relationship] = data;
+      acc[relationship] = { data: data };
     } else if (requiredRelationships(schema).includes(relationship) ) {
       throw new Error(`Required attribute: ${relationship}`);
     } else {
-      acc[relationship] = meta;
+      acc[relationship] = { data: null };
     }
     return acc;
   }, {});
@@ -61,11 +61,7 @@ function attributes(type, schema) {
 
 function relationships(type, schema) {
   if (type == "item") {
-    if (link.rel == "create") {
-      return { item_type: { collection: false, type: 'item_type' } };
-    } else {
-      return {};
-    }
+    return { item_type: { collection: false, type: 'item_type' } };
   }
 
   if (!linkRelationships(schema).properties) {
@@ -87,7 +83,6 @@ function relationships(type, schema) {
       definition = relAttributes.properties.data.anyOf
         .find( x => x.type[0] != 'null' );
     }
-
 
     const relType = definition.properties.type.pattern
       .replace(new RegExp(/(^\^|\$$)/, 'g'), '');

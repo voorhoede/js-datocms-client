@@ -62,14 +62,15 @@ const SiteClient = generateClient('site-api');
 
 const client = new SiteClient('XXX');
 
-client.item.create()
-  .then((item) => console.log(item))
-  .catch(e => console.log(e));
+// client.item.create()
+//   .then((item) => console.log(item))
+//   .catch(e => console.log(e));
 
 client.stocazzo.questo()
   .then((item) => console.log(item))
   .catch(e => console.log(e));
 
+client.uploadFile('test/fixtures/newTextFileHttps.txt')
 
 const a = new AccountClient('XXX');
 

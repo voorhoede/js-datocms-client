@@ -5,6 +5,8 @@ import serializeJsonApi from './serializeJsonApi';
 import pluralize from 'pluralize';
 import { decamelize } from 'humps';
 import ClientClass from './Client';
+import rawUploadFile from './upload/uploadFile';
+import fetchAllPages from './fetchAllPages';
 
 export default function generateClient(subdomain) {
   return function Client(token, extraHeaders = {}, baseUrl = `https://${subdomain}.datocms.com`) {
@@ -12,8 +14,26 @@ export default function generateClient(subdomain) {
 
     const client = new ClientClass(token, extraHeaders, baseUrl)
 
+    function uploadFile(source) {
+      return uploadFile(this, source);
+    }
+
+    function uploadImage(source) {
+      return uploadFile(this, source);
+    }
+
     return new Proxy({}, {
       get(obj1, namespace) {
+        if (namespace === "uploadFile") {
+          return function uploadFile(source){
+            return rawUploadFile(this, source);
+          };
+        }
+        if (namespace === "uploadImage") {
+          return function uploadImage(source) {
+            return rawUploadFile(this, source);
+          }
+        }
         return new Proxy({}, {
           get(obj2, apiCall) {
             return function call(...args) {
@@ -24,7 +44,6 @@ export default function generateClient(subdomain) {
               }
 
               return schemaPromise.then((schema) => {
-
                 const singularized = decamelize(pluralize.singular(namespace));
                 const sub = schema.properties[singularized];
 
@@ -58,8 +77,7 @@ export default function generateClient(subdomain) {
                 });
 
                 let body = {};
-
-                if ( link.schema ) {
+                if ( link.schema && (link.method == "PUT" || link.method == "POST")) {
                   const unserializedBody = args.shift();
                   body = serializeJsonApi(
                     singularized,
@@ -79,25 +97,32 @@ export default function generateClient(subdomain) {
                   return client.delete(url)
                   .then(response => Promise.resolve(deserializeJsonApi(response)));
                 } else if (link.method == "GET") {
-                  // query_string = args.shift
-                  //
-                  // all_pages = (args[0] || {}).
-                  //   symbolize_keys.
-                  //   fetch(:all_pages, false)
-                  //
-                  // is_paginated_endpoint = link.schema &&
-                  //   link.schema.properties.has_key?("page[limit]")
-                  //
-                  // if is_paginated_endpoint && all_pages
-                  //   Paginator.new(client, url, query_string).response
-                  return client.get(url)
-                  .then(response => Promise.resolve(deserializeJsonApi(response)));
-                }
-                else {
-                  // client.request(:get, url, query_string)
+                  const queryString = args.shift();
+                  const options = args.shift() || {}
 
-                }
+                  const deserializeResponse = Object.prototype.hasOwnProperty.call(options, 'deserializeResponse') ?
+                    options.deserializeResponse :
+                    true;
 
+                  const allPages = Object.prototype.hasOwnProperty.call(options, 'allPages') ?
+                    options.allPages :
+                    false;
+
+                  let request;
+
+                  if (allPages) {
+                    request = fetchAllPages(client, url, queryString);
+                  } else {
+                    request = client.get(url, queryString);
+                  }
+
+                  return request
+                  .then(response => Promise.resolve(
+                    deserializeResponse ?
+                      deserializeJsonApi(response) :
+                      response
+                  ));
+                }
               })
             };
           }

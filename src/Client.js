@@ -91,7 +91,6 @@ export default class Client {
     const query = Object.keys(params).length ?
       `?${queryString.stringify(params)}` :
       '';
-
     return `${this.baseUrl}${path}${query}`;
   }
 
